@@ -4,7 +4,7 @@
 
 from .providers import Provider
 import sys
-from .logconfig import logger
+# from .logconfig import logger
 from .service import Safe2ShareService
 import json
 import argparse
