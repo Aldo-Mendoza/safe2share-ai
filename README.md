@@ -57,7 +57,7 @@ classDiagram
     
     class Safe2ShareService {
         + analyzer: BaseAnalyzer
-        + __init__(mode)
+        + __init__(provider)
         + analyze(text): AnalysisResult
     }
     
@@ -106,9 +106,9 @@ flowchart TD
     A[User Input] --> B[Safe2ShareService]
     B --> C{Select Analyzer}
 
-    C -->|rule| D[RuleBasedAnalyzer]
-    C -->|ai| E[OpenAIGPTAnalyzer]
-    C -->|hybrid| F[AutoCombinedAnalyzer]
+    C -->|local| D[RuleBasedAnalyzer]
+    C -->|llm| E[OpenAIGPTAnalyzer]
+    C -->|auto| F[AutoCombinedAnalyzer]
 
     D --> G[AnalysisResult]
     E --> G
@@ -127,9 +127,9 @@ The CLI provides a lightweight way to process text directly from the terminal. A
 
 | Mode | Command | Description |
 | :--- | :--- | :--- |
-| **Default (Rule-Based)** | `python src/safe2share/cli.py "My client's email is client@corp.com."` | Uses the local, privacy-preserving Rule-Based analyzer. |
-| **Specific Mode** | `python src/safe2share/cli.py "My password is 12345" --mode rule` | Explicitly enforces the local Rule-Based mode. |
-| **AI Mode (Requires Key)** | `python src/safe2share/cli.py "The confidential document is ready." --mode openai` | Uses the external AI Analyzer (requires `OPENAI_API_KEY` to be set). |
+| **Default (Rule-Based)** | `python -m safe2share "My password is 12345" --provider local` | Uses the local, privacy-preserving Rule-Based analyzer. |
+| **LLM Provider** | `python -m safe2share "Confidential doc..." --provider llm` | Uses available LLM models to analyze the input. |
+| **Auto** | `python -m safe2share "..." --provider auto` | Uses local first then optional escalation. |
 
 ### B. FastAPI Web Service (API)
 
