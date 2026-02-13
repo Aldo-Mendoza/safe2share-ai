@@ -2,6 +2,7 @@
 
 from pydantic import BaseModel, Field, BeforeValidator
 from typing import List, Literal, Dict, Any, Annotated
+from .providers import  Provider
 
 
 # Risk level definitions
@@ -40,10 +41,10 @@ class AnalysisResult(BaseModel):
 
 
 class AnalyzeRequest(BaseModel):
-    text: str = Field(..., description="The text content to be analyzed for sensitive data.")
-    
-    # Optional field that aligns with the mode parameter in your service
-    mode: Literal["rule", "ai", "hybrid", "default"] = Field(
-        None, 
-        description="Optional: Overrides the default analyzer mode (rule, ai, hybrid)."
-    )
+    text: str = Field(..., min_length=1, description="Text to analyze")
+    provider: Provider = Field(
+        default=Provider.LOCAL, description="Analysis provider")
+
+
+class AnalyzeResponse(BaseModel):
+    pass
