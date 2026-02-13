@@ -24,9 +24,13 @@ class Safe2ShareService:
             self.analyzer = OpenAIGPTAnalyzer()
             if hasattr(self.analyzer, "is_available") and not self.analyzer.is_available:
                 raise RuntimeError(
-                    "Provider 'llm' selected but no LLM configuration is available. "
-                    "Set S2S_LLM_BASE_URL / S2S_LLM_MODEL (and S2S_LLM_API_KEY if required), "
-                    "or use --provider local."
+                    "Provider 'llm' selected but no LLM configuration is available.\n"
+                    "Set these environment variables:\n"
+                    "  S2S_LLM_BASE_URL (e.g., http://localhost:11434/v1)\n"
+                    "  S2S_LLM_MODEL (e.g., llama3.1)\n"
+                    "Optional:\n"
+                    "  S2S_LLM_API_KEY (required for some hosted providers)\n"
+                    "Or use: --provider local"
                 )
         elif self.provider == Provider.AUTO:
             # For Day 1: start with local to keep it predictable.
