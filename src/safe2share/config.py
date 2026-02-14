@@ -1,30 +1,21 @@
-# settings (Pydantic)
-
+from pydantic import BaseModel
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from typing import Optional
+
+from .providers import Provider
 
 
 class Settings(BaseSettings):
-    # Global Application Settings
-    MODE: str = "local" 
-    LOG_LEVEL: str = "INFO"
+    """
+    Central configuration for Safe2Share.
+    """
+    model_config = SettingsConfigDict(env_prefix="S2S_", extra="ignore")
 
-    # --- API-BASED ANALYZER CONFIG (OpenAI Protocol) ---
-    # Used for any external service compatible with the OpenAI API (OpenAI, Azure, Proxies)
-    OPENAI_API_KEY: Optional[str] = None
-    OPENAI_MODEL: str = "gpt-4o-mini"
-    OPENAI_BASE_URL: Optional[str] = None
+    provider: Provider = Provider.LOCAL
 
-    # --- LOCAL LLAMA/OLLAMA CONFIG (TODO) ---
-    # These would be accessed by a separate LlamaLocalAnalyzer class
-    LLAMA_HOST: Optional[str] = None
-    LLAMA_MODEL: Optional[str] = None
-
-
-    model_config = SettingsConfigDict(
-        env_file=".env",
-        case_sensitive=True 
-    )
+    # LLM / OpenAI-compatible configuration (used starting Day 2)
+    llm_base_url: str | None = None
+    llm_api_key: str | None = None
+    llm_model: str | None = None
 
 
 settings = Settings()
