@@ -4,7 +4,7 @@ import logging
 from ..analyzers.base import BaseAnalyzer
 from ..analyzers.rule_based import RuleBasedAnalyzer
 
-from ..analyzers.openai_analyzer import OpenAIGPTAnalyzer
+from ..analyzers.llm_openai_compat import OpenAICompatibleAnalyzer
 from ..models import AnalysisResult, map_score_to_risk
 
 logger = logging.getLogger(__name__)
@@ -15,7 +15,8 @@ class AutoCombinedAnalyzer(BaseAnalyzer):
     A composite analyzer that runs multiple strategies (AI and Rule-Based) 
     and merges the results, taking the most severe outcome.
     """
-    def __init__(self, rule_analyzer: RuleBasedAnalyzer, ai_analyzer: OpenAIGPTAnalyzer):
+
+    def __init__(self, rule_analyzer: RuleBasedAnalyzer, ai_analyzer: OpenAICompatibleAnalyzer):
         self.rule_analyzer = rule_analyzer
         self.ai_analyzer = ai_analyzer
 
