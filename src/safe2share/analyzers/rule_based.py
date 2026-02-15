@@ -11,7 +11,7 @@ class PatternDetector:
         self.base_score = base_score
 
     def find(self, text: str) -> List[Detection]:
-        results = []
+        results: List[Detection] = []
         for match in self.regex.finditer(text):
             span = match.group(0)
             results.append(
@@ -19,6 +19,8 @@ class PatternDetector:
                     label=self.label,
                     span=span,
                     score=self.base_score,
+                    start=match.start(),
+                    end=match.end(),
                 )
             )
         return results
@@ -31,7 +33,8 @@ class RuleBasedAnalyzer(BaseAnalyzer):
 
     DETECTORS = [
         # Password-like fields
-        PatternDetector("CREDENTIAL", r"(password|pass|pwd)\s*[:=]\s*\S+", 90),
+        PatternDetector(
+            "CREDENTIAL", r"(password|pass|pwd)\s*(?:[:=]|is)\s*\S+", 90),
 
         # Generic tokens/secrets
         PatternDetector(
@@ -53,7 +56,7 @@ class RuleBasedAnalyzer(BaseAnalyzer):
 
         # Private key blocks
         PatternDetector(
-            "PRIVATE_KEY", r"-----BEGIN (RSA|DSA|EC|OPENSSH)? PRIVATE KEY-----", 100),
+            "PRIVATE_KEY", r"-----BEGIN (?:RSA|DSA|EC|OPENSSH)?\s*PRIVATE KEY-----", 100),
 
         # High-entropy long strings (possible secrets)
         PatternDetector("HIGH_ENTROPY", r"[A-Za-z0-9+/]{32,}={0,2}", 60),
@@ -69,18 +72,24 @@ class RuleBasedAnalyzer(BaseAnalyzer):
         "credential": 15,
     }
 
+    HIGH_ENTROPY_HINT_WORDS = (
+        "token", "secret", "api", "key", "password", "bearer", "credential", "jwt"
+    )
+
+
     @property
     def is_available(self) -> bool:
         # Local deterministic analyzer is always available
         return True
 
-
     def analyze(self, text: str) -> AnalysisResult:
         detections: List[Detection] = []
 
+        # 1) Run all detectors
         for detector in self.DETECTORS:
             detections.extend(detector.find(text))
 
+        # Early return if nothing matched
         if not detections:
             return AnalysisResult(
                 risk="PUBLIC",
@@ -91,27 +100,67 @@ class RuleBasedAnalyzer(BaseAnalyzer):
                 metadata={"analyzer": "rule_engine_v3"},
             )
 
-        # Boost scores if contextual keywords appear
         lower = text.lower()
+
+        # 2) False-positive guard for HIGH_ENTROPY:
+        # Keep HIGH_ENTROPY only if hint words exist somewhere in the text.
+        has_entropy_hints = any(w in lower for w in self.HIGH_ENTROPY_HINT_WORDS)
+        filtered: List[Detection] = []
+        for d in detections:
+            if d.label == "HIGH_ENTROPY" and not has_entropy_hints:
+                continue
+            filtered.append(d)
+        detections = filtered
+
+        # If filtering removed everything, treat as safe
+        if not detections:
+            return AnalysisResult(
+                risk="PUBLIC",
+                score=0,
+                reasons=["No sensitive patterns found"],
+                detections=[],
+                suggested_rewrites=[],
+                metadata={"analyzer": "rule_engine_v3"},
+            )
+
+        # 3) Keyword boosters (contextual bump)
         for det in detections:
             for kw, boost in self.KEYWORD_BOOSTERS.items():
                 if kw in lower:
                     det.score = min(100, det.score + boost)
 
-        # Aggregate score (max + mild stacking)
+        # 4) Aggregate score (max + mild stacking)
         max_score = max(d.score for d in detections)
         stacked_bonus = min(15, len(detections) * 5)
         final_score = min(100, max_score + stacked_bonus)
 
         risk = map_score_to_risk(final_score)
 
-        reasons = [
-            f"Detected {d.label}: '{d.span[:40]}...'" for d in detections]
+        reasons = [f"Detected {d.label}: '{d.span[:40]}...'" for d in detections]
 
-        # Basic rewrite (replace sensitive spans)
-        redacted = text
-        for d in detections:
-            redacted = redacted.replace(d.span, "[REDACTED]")
+        # 5) Rewrite using offsets (safer than global replace)
+        spans = sorted(
+            [d for d in detections if d.start is not None and d.end is not None],
+            key=lambda x: x.start,
+        )
+
+        if spans:
+            redacted_parts: List[str] = []
+            cursor = 0
+            for d in spans:
+                if d.start < cursor:
+                    # Overlapping span; skip (merge logic can be added later)
+                    continue
+                redacted_parts.append(text[cursor:d.start])
+                redacted_parts.append("[REDACTED]")
+                cursor = d.end
+            redacted_parts.append(text[cursor:])
+            redacted = "".join(redacted_parts)
+        else:
+            # Fallback if offsets are missing for any reason
+            redacted = text
+            for d in detections:
+                redacted = redacted.replace(d.span, "[REDACTED]")
 
         return AnalysisResult(
             risk=risk,
