@@ -1,113 +1,61 @@
-# Orchestrator holds a reference to the active Strategy
 import logging
+
 from .config import settings
 from .providers import Provider
 
-from .analyzers.base import BaseAnalyzer
 from .analyzers.rule_based import RuleBasedAnalyzer
 from .analyzers.llm_openai_compat import OpenAICompatibleAnalyzer
-from .analyzers.auto_combined import AutoCombinedAnalyzer
-from .models import AnalysisResult
 
 logger = logging.getLogger(__name__)
 
 
 class Safe2ShareService:
-    def __init__(self, provider: Provider | None = None):
-        self.provider = provider or settings.provider
+    """
+    Orchestrator that selects an analyzer strategy based on Provider
+    and exposes a single analyze(text) entrypoint.
+    """
 
-        # Day 1: Keep behavior simple.
-        # Map provider to analyzer.
-        if self.provider == Provider.LOCAL:
-            self.analyzer = RuleBasedAnalyzer()
-        elif self.provider == Provider.LLM:
-            self.analyzer = OpenAICompatibleAnalyzer()
-            if hasattr(self.analyzer, "is_available") and not self.analyzer.is_available:
-                raise RuntimeError(
-                    "Provider 'llm' selected but no LLM configuration is available.\n"
-                    "Set these environment variables:\n"
-                    "  S2S_LLM_BASE_URL (e.g., http://localhost:11434/v1)\n"
-                    "  S2S_LLM_MODEL (e.g., llama3.1)\n"
-                    "Optional:\n"
-                    "  S2S_LLM_API_KEY (required for some hosted providers)\n"
-                    "Or use: --provider local"
-                )
-        elif self.provider == Provider.AUTO:
-            # For Day 1: start with local to keep it predictable.
-            # Day 3+ can combine.
-            self.analyzer = RuleBasedAnalyzer()
-        else:
-            raise ValueError(f"Unsupported provider: {self.provider}")
+    def __init__(self, provider: Provider | None = None):
+        self.provider: Provider = provider or settings.provider
+        self.analyzer = self._build_analyzer(self.provider)
+
+        # Uniform readiness check (local is always available; llm depends on config/endpoint)
+        if hasattr(self.analyzer, "is_available") and not self.analyzer.is_available:
+            raise self._unavailable_error(self.provider)
+
+        logger.info("Safe2Share initialized with provider=%s analyzer=%s",
+                    self.provider.value, self.analyzer.__class__.__name__)
 
     def analyze(self, text: str):
         return self.analyzer.analyze(text)
 
+    def _build_analyzer(self, provider: Provider):
+        if provider == Provider.LOCAL:
+            return RuleBasedAnalyzer()
 
-# class Safe2ShareService:
+        if provider == Provider.LLM:
+            # Uses OpenAI-compatible endpoint (OpenAI, Ollama, LM Studio, etc.)
+            return OpenAICompatibleAnalyzer()
 
-#     ANALYZER_REGISTRY_CLASSES = {
-#         "rule": RuleBasedAnalyzer,
-#         "local": RuleBasedAnalyzer,  # Alias for rule
-#         "openai": OpenAIGPTAnalyzer,
-#         # "llama": LlamaLocalAnalyzer,
-#         # "azure": AzureGPTAnalyzer,
-#     }
+        if provider == Provider.AUTO:
+            # Day 5: implement "local-first then escalate to LLM" behavior.
+            # Day 4: keep predictable by defaulting to LOCAL behavior.
+            return RuleBasedAnalyzer()
 
-#     def __init__(self, mode: str | None = None, ):
-#         self.mode = mode or settings.MODE
-#         # Central Registry
-#         self.analyzers: dict[str, BaseAnalyzer] = {
-#             mode_key: AnalyzerClass()
-#             for mode_key, AnalyzerClass in self.ANALYZER_REGISTRY_CLASSES.items()
-#         }
+        raise ValueError(f"Unsupported provider: {provider}")
 
-#         self.analyzer = self._get_active_analyzer()
+    @staticmethod
+    def _unavailable_error(provider: Provider) -> RuntimeError:
+        if provider == Provider.LLM:
+            return RuntimeError(
+                "Provider 'llm' selected but no LLM configuration is available.\n"
+                "Set these environment variables:\n"
+                "  S2S_LLM_BASE_URL (e.g., http://127.0.0.1:11434/v1)\n"
+                "  S2S_LLM_MODEL (e.g., llama3.1:latest)\n"
+                "Optional:\n"
+                "  S2S_LLM_API_KEY (required for some hosted providers)\n"
+                "Or use: --provider local"
+            )
 
-#         logger.info(
-#             f"Service initialized. Requested mode: {self.mode}. Active Analyzer: {self.analyzer.__class__.__name__}")
-
-
-#     def _get_active_analyzer(self) -> BaseAnalyzer:
-#         """Selects the appropriate analyzer model based on mode and availability."""
-
-#         # Handle explicit AI mode
-#         if self.mode in self.analyzers:
-#             ai_model = self.analyzers[self.mode]
-#             if ai_model.is_available:
-#                 return ai_model
-#             else:
-#                 logger.warning(
-#                     f"{self.mode.upper()} Analyzer is unavailable. Falling back to Rule-Based.")
-#                 return self.analyzers["rule"]
-
-#         if self.mode == "auto":
-#             # Combined strategy
-#             ai_instance = self.analyzers["openai"] 
-#             rule_instance = self.analyzers["rule"]
-            
-#             # If AI is available, use AutoCombined, otherwise fall back to RuleBased
-#             if ai_instance.is_available:
-#                  # TODO: Refactor to take instances
-#                 return AutoCombinedAnalyzer(rule_instance, ai_instance)
-#             else:
-#                 return rule_instance
-        
-#         # Default fallback
-#         return self.analyzers["rule"]
-        
-#     def analyze(self, text: str) -> AnalysisResult:
-#         return self.analyzer.analyze(text)
-    
-#     def analyze_with_info(self, text: str) -> tuple[AnalysisResult, str]:
-#         """
-#         Executes analysis and returns the result along with the name 
-#         of the concrete analyzer strategy that was actually used.
-#         """
-#         result = self.analyzer.analyze(text)
-        
-#         analyzer_name = self.analyzer.__class__.__name__.replace('Analyzer', '').lower()
-        
-#         if isinstance(self.analyzer, AutoCombinedAnalyzer):
-#             analyzer_name = "auto"
-        
-#         return result, analyzer_name
+        # For completeness, though LOCAL should never be unavailable.
+        return RuntimeError(f"Provider '{provider.value}' selected but analyzer is unavailable.")
