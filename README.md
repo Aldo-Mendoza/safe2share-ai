@@ -7,6 +7,64 @@
 
 Local-first Confidential Information Checker that analyzes text before it is shared with AI tools or external services. Includes rule-based detection, optional AI analyzer, FastAPI demo, and extensible architecture.
 
+## Quickstart (Local + Browser UI)
+
+Safe2Share can be used in **three ways**:
+
+### 1) Run the Web UI (recommended demo)
+
+```bash
+uvicorn safe2share.api:app --reload
+```
+
+Open in browser:
+
+```
+http://127.0.0.1:8000/
+```
+
+Paste text → choose provider → click **Scan**.
+
+---
+
+### 2) CLI – Local rules (offline & fast)
+
+```bash
+python -m safe2share "My password is 12345" --provider local
+```
+
+Scan a file:
+
+```bash
+python -m safe2share --file notes.txt --provider local --json
+```
+
+---
+
+### 3) CLI – Local AI (Ollama)
+
+Install Ollama: [https://ollama.com](https://ollama.com)
+Pull a model:
+
+```bash
+ollama pull llama3.1
+```
+
+Set environment:
+
+```bash
+export S2S_LLM_BASE_URL=http://127.0.0.1:11434/v1
+export S2S_LLM_MODEL=llama3.1:latest
+```
+
+Run:
+
+```bash
+python -m safe2share "My password is 12345" --provider llm --json
+```
+
+-----
+
 ## 1\. Project Overview
 
 Safe2Share AI is a **confidentiality analysis service** designed to act as a crucial gatekeeper *before* text is submitted to external or proprietary AI systems (like OpenAI, Claude, or internal LLMs).
@@ -139,7 +197,7 @@ The FastAPI server exposes the analysis functionality via a web endpoint.
     Run this command from the project root to start the server with auto-reloading:
 
     ```bash
-    uvicorn src.safe2share.main:app --reload --host 0.0.0.0 --port 8000
+    uvicorn safe2share.api:app --reload
     ```
 
 2.  **Access Documentation:**
@@ -223,9 +281,10 @@ pytest
 
 ## 8\. Limitations & Future Enhancements
 
-  * **Local-Model Integration:** Implement a lightweight **local LLM** (e.g. Ollama) for **local inference**, eliminating external API dependencies and maximizing privacy—a key objective in **Responsible AI**.
+  * **Local LLM support via Ollama (OpenAI-compatible)** — already implemented, enabling private offline AI scanning.
   * **Improved Classification:** Integrate **Named Entity Recognition (NER)** models to replace simple regex, greatly improving accuracy on contextual PII.
   * **UI/UX Expansion:** Develop a simple JavaScript frontend to demonstrate **real-time analysis** for browser-based applications.
+  • Rule engine expansion for detecting generic secrets (tokens, API keys, short credentials)
 
 -----
 
