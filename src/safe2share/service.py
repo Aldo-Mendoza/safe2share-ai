@@ -5,7 +5,7 @@ from .providers import Provider
 
 from .analyzers.base import BaseAnalyzer
 from .analyzers.rule_based import RuleBasedAnalyzer
-from .analyzers.openai_analyzer import OpenAIGPTAnalyzer
+from .analyzers.llm_openai_compat import OpenAICompatibleAnalyzer
 from .analyzers.auto_combined import AutoCombinedAnalyzer
 from .models import AnalysisResult
 
@@ -21,7 +21,7 @@ class Safe2ShareService:
         if self.provider == Provider.LOCAL:
             self.analyzer = RuleBasedAnalyzer()
         elif self.provider == Provider.LLM:
-            self.analyzer = OpenAIGPTAnalyzer()
+            self.analyzer = OpenAICompatibleAnalyzer()
             if hasattr(self.analyzer, "is_available") and not self.analyzer.is_available:
                 raise RuntimeError(
                     "Provider 'llm' selected but no LLM configuration is available.\n"
