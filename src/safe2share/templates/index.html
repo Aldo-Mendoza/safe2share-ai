@@ -1,18 +1,108 @@
-<!DOCTYPE html>
-<html>
+<!doctype html>
+<html lang="en">
+
 <head>
-    <title>Safe2Share AI Service</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Safe2Share</title>
+    <meta name="description" content="Local-first confidentiality scanner for prompts and text." />
+    <link rel="stylesheet" href="/static/styles.css" />
 </head>
+
 <body>
-    <h1>Welcome to Safe2Share AI Analysis Service!</h1>
-    <p>This service provides risk analysis for sensitive text content.</p>
-    
-    <a href="/docs">
-        <button style="padding: 10px; background-color: #4CAF50; color: white; border: none; cursor: pointer;">
-            Go to Interactive Documentation
-        </button>
-    </a>
-    
-    <p>To analyze text, send a POST request to the /analyze endpoint.</p>
+    <main class="container">
+        <header class="header">
+            <div>
+                <h1>Safe2Share</h1>
+                <p class="muted">Scan text before you paste it into AI tools.</p>
+            </div>
+            <div class="pill" id="statusPill">API: …</div>
+        </header>
+
+        <section class="card">
+            <div class="row">
+                <label for="provider">Provider</label>
+                <select id="provider">
+                    <option value="local">local (offline rules)</option>
+                    <option value="llm">llm (OpenAI-compatible)</option>
+                    <option value="auto">auto (local-first)</option>
+                </select>
+
+                <button id="scanBtn">Scan</button>
+                <button id="clearBtn" class="secondary">Clear</button>
+            </div>
+
+            <label for="inputText">Text</label>
+            <textarea id="inputText" rows="10" placeholder="Paste text here..."></textarea>
+
+            <div class="hint">
+                Tip: Try <code>My password is 12345</code> with <b>llm</b>, or paste a prompt draft.
+            </div>
+        </section>
+
+        <section class="grid">
+            <div class="card">
+                <h2>Result</h2>
+                <div class="resultRow">
+                    <div class="metric">
+                        <div class="muted">Risk</div>
+                        <div class="big" id="riskValue">—</div>
+                    </div>
+                    <div class="metric">
+                        <div class="muted">Score</div>
+                        <div class="big" id="scoreValue">—</div>
+                    </div>
+                </div>
+
+                <div class="divider"></div>
+
+                <h3>Reasons</h3>
+                <ul id="reasonsList" class="list"></ul>
+
+                <h3>Detections</h3>
+                <div id="detectionsList" class="list"></div>
+
+                <h3>Suggested rewrite</h3>
+                <div class="rewriteBox">
+                    <pre id="rewriteText">—</pre>
+                    <button id="copyRewriteBtn" class="secondary">Copy</button>
+                </div>
+
+                <div class="errorBox" id="errorBox" hidden></div>
+            </div>
+
+            <div class="card">
+                <h2>API</h2>
+                <p class="muted">
+                    This UI calls <code>POST /analyze</code>. You can also use the Swagger docs at:
+                </p>
+                <p><a href="/docs" target="_blank" rel="noreferrer">/docs</a></p>
+
+                <div class="divider"></div>
+
+                <h3>Current config</h3>
+                <p class="muted">
+                    LLM endpoint comes from environment variables:
+                    <code>S2S_LLM_BASE_URL</code>, <code>S2S_LLM_MODEL</code>.
+                </p>
+
+                <div class="divider"></div>
+
+                <h3>Privacy note</h3>
+                <p class="muted">
+                    <b>local</b> never leaves your machine. <b>llm</b> depends on your configured
+                    provider.
+                    With Ollama (<code>127.0.0.1</code>), it stays local.
+                </p>
+            </div>
+        </section>
+
+        <footer class="footer muted">
+            Safe2Share MVP — 2026
+        </footer>
+    </main>
+
+    <script src="/static/app.js"></script>
 </body>
+
 </html>
