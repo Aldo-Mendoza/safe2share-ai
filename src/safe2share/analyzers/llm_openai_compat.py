@@ -9,34 +9,10 @@ from openai import OpenAI
 from .base import BaseAnalyzer
 from ..config import settings
 from ..models import AnalysisResult, Detection, map_score_to_risk
+from .prompts import (PROMPT_V1, PROMPT_V2_REDACT_FULL)
 
 
-SYSTEM_PROMPT = """You are Safe2Share, a security classifier for text that may be shared with AI tools.
-Detect sensitive information that should NOT be pasted into external AI systems.
-
-You MUST return ONLY valid JSON (no markdown, no commentary) with this schema:
-{
-  "score": 0-100 integer,
-  "reasons": [string, ...],
-  "detections": [{"label": string, "span": string, "score": 0-100 integer}, ...],
-  "suggested_rewrites": [string, ...]
-}
-
-Scoring guidelines:
-- 0-10: public / harmless
-- 25+: internal hints, non-public details
-- 60+: confidential business/personal data
-- 85+: secrets/credentials, private keys, passwords, tokens, direct PII, proprietary code
-
-Examples:
-Input: "My password is 12345"
-Output:
-{"score":90,"reasons":["Contains a password value."],"detections":[{"label":"CREDENTIAL","span":"password is 12345","score":90}],"suggested_rewrites":["My password is [REDACTED]."]}
-
-Input: "Hello"
-Output:
-{"score":0,"reasons":[],"detections":[],"suggested_rewrites":[]}
-"""
+SYSTEM_PROMPT = PROMPT_V2_REDACT_FULL
 
 
 class OpenAICompatibleAnalyzer(BaseAnalyzer):
