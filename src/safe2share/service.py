@@ -23,39 +23,24 @@ class Safe2ShareService:
         if hasattr(self.analyzer, "is_available") and not self.analyzer.is_available:
             raise self._unavailable_error(self.provider)
 
-        logger.info("Safe2Share initialized with provider=%s analyzer=%s",
-                    self.provider.value, self.analyzer.__class__.__name__)
+        if self.provider == Provider.LOCAL:
+            self.analyzer = RuleBasedAnalyzer()
+        elif self.provider == Provider.LLM:
+            self.analyzer = OpenAICompatibleAnalyzer()
+            if hasattr(self.analyzer, "is_available") and not self.analyzer.is_available:
+                raise RuntimeError(
+                    "Provider 'llm' selected but no LLM configuration is available.\n"
+                    "Set these environment variables:\n"
+                    "  S2S_LLM_BASE_URL (e.g., http://localhost:11434/v1)\n"
+                    "  S2S_LLM_MODEL (e.g., llama3.1)\n"
+                    "Optional:\n"
+                    "  S2S_LLM_API_KEY (required for some hosted providers)\n"
+                    "Or use: --provider local"
+                )
+        elif self.provider == Provider.AUTO:
+            self.analyzer = AutoCombinedAnalyzer()
+        else:
+            raise ValueError(f"Unsupported provider: {self.provider}")
 
     def analyze(self, text: str):
         return self.analyzer.analyze(text)
-
-    def _build_analyzer(self, provider: Provider):
-        if provider == Provider.LOCAL:
-            return RuleBasedAnalyzer()
-
-        if provider == Provider.LLM:
-            # Uses OpenAI-compatible endpoint (OpenAI, Ollama, LM Studio, etc.)
-            return OpenAICompatibleAnalyzer()
-
-        if provider == Provider.AUTO:
-            # Day 5: implement "local-first then escalate to LLM" behavior.
-            # Day 4: keep predictable by defaulting to LOCAL behavior.
-            return RuleBasedAnalyzer()
-
-        raise ValueError(f"Unsupported provider: {provider}")
-
-    @staticmethod
-    def _unavailable_error(provider: Provider) -> RuntimeError:
-        if provider == Provider.LLM:
-            return RuntimeError(
-                "Provider 'llm' selected but no LLM configuration is available.\n"
-                "Set these environment variables:\n"
-                "  S2S_LLM_BASE_URL (e.g., http://127.0.0.1:11434/v1)\n"
-                "  S2S_LLM_MODEL (e.g., llama3.1:latest)\n"
-                "Optional:\n"
-                "  S2S_LLM_API_KEY (required for some hosted providers)\n"
-                "Or use: --provider local"
-            )
-
-        # For completeness, though LOCAL should never be unavailable.
-        return RuntimeError(f"Provider '{provider.value}' selected but analyzer is unavailable.")

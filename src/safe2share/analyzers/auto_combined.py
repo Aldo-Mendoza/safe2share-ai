@@ -1,55 +1,77 @@
-# Analizer that runs multiple models and merges their results.
+from __future__ import annotations
 
-import logging
-from ..analyzers.base import BaseAnalyzer
-from ..analyzers.rule_based import RuleBasedAnalyzer
+from dataclasses import dataclass
+from typing import Optional
 
-from ..analyzers.llm_openai_compat import OpenAICompatibleAnalyzer
-from ..models import AnalysisResult, map_score_to_risk
+from .base import BaseAnalyzer
+from .rule_based import RuleBasedAnalyzer
+from .llm_openai_compat import OpenAICompatibleAnalyzer
+from ..models import AnalysisResult
 
-logger = logging.getLogger(__name__)
+
+@dataclass
+class AutoPolicy:
+    # Escalate to LLM when local result indicates meaningful risk
+    escalate_risks: tuple[str, ...] = ("CONFIDENTIAL", "HIGHLY_CONFIDENTIAL")
 
 
 class AutoCombinedAnalyzer(BaseAnalyzer):
     """
-    A composite analyzer that runs multiple strategies (AI and Rule-Based) 
-    and merges the results, taking the most severe outcome.
+    Local-first analyzer. Runs rule-based detection first, then optionally escalates to LLM.
     """
 
-    def __init__(self, rule_analyzer: RuleBasedAnalyzer, ai_analyzer: OpenAICompatibleAnalyzer):
-        self.rule_analyzer = rule_analyzer
-        self.ai_analyzer = ai_analyzer
+    def __init__(
+        self,
+        local: Optional[BaseAnalyzer] = None,
+        llm: Optional[BaseAnalyzer] = None,
+        policy: Optional[AutoPolicy] = None,
+    ):
+        self.local = local or RuleBasedAnalyzer()
+        self.llm = llm or OpenAICompatibleAnalyzer()
+        self.policy = policy or AutoPolicy()
+
+    @property
+    def is_available(self) -> bool:
+        # AUTO is always "available" because local is always available.
+        # LLM might not be available, but we can still run local.
+        return True
 
     def analyze(self, text: str) -> AnalysisResult:
-        """Runs both AI and Rule-Based analysis and merges the results."""
-        
-        try:
-            ai_res = self.ai_analyzer.analyze(text)
-        except Exception as exc:
-            logger.warning("AI analyzer failed, returning Rule-Based result: %s", exc)
-            # Fallback
-            return self.rule_analyzer.analyze(text)
+        local_res = self.local.analyze(text)
 
-        rule_res = self.rule_analyzer.analyze(text)
+        # Decide escalation
+        should_escalate = local_res.risk in self.policy.escalate_risks
 
-        final_score = max(ai_res.score, rule_res.score)
-        final_risk = map_score_to_risk(final_score)
-        
-        merged_reasons = list(dict.fromkeys(ai_res.reasons + rule_res.reasons))
-        merged_detections = ai_res.detections + rule_res.detections
-        
-        # Prefer AI suggested rewrites if they exist
-        suggested = ai_res.suggested_rewrites or rule_res.suggested_rewrites
+        # Always record local result in metadata
+        local_meta = {
+            "auto_local_risk": local_res.risk,
+            "auto_local_score": str(local_res.score),
+            "auto_escalated": str(should_escalate).lower(),
+        }
 
-        return AnalysisResult(
-            risk=final_risk,
-            score=final_score,
-            reasons=merged_reasons,
-            detections=merged_detections,
-            suggested_rewrites=suggested,
-            metadata={
-                "mode": "auto", 
-                "ai_score": str(ai_res.score), 
-                "rule_score": str(rule_res.score)
-            },
-        )
+        # If not escalating, return local
+        if not should_escalate:
+            local_res.metadata = {**(local_res.metadata or {}), **
+                                  local_meta, "provider": "auto", "auto_path": "local_only"}
+            return local_res
+
+        # Escalate only if LLM is available
+        if hasattr(self.llm, "is_available") and not self.llm.is_available:
+            local_res.metadata = {
+                **(local_res.metadata or {}),
+                **local_meta,
+                "provider": "auto",
+                "auto_path": "local_only_llm_unavailable",
+            }
+            return local_res
+
+        llm_res = self.llm.analyze(text)
+
+        # Attach auto metadata + preserve LLM metadata (model/base_url)
+        llm_res.metadata = {
+            **(llm_res.metadata or {}),
+            **local_meta,
+            "provider": "auto",
+            "auto_path": "escalated_to_llm",
+        }
+        return llm_res
