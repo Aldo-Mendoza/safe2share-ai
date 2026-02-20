@@ -1,20 +1,27 @@
-# Orchestrator holds a reference to the active Strategy
 import logging
+
 from .config import settings
 from .providers import Provider
 
-from .analyzers.base import BaseAnalyzer
 from .analyzers.rule_based import RuleBasedAnalyzer
 from .analyzers.llm_openai_compat import OpenAICompatibleAnalyzer
-from .analyzers.auto_combined import AutoCombinedAnalyzer
-from .models import AnalysisResult
 
 logger = logging.getLogger(__name__)
 
 
 class Safe2ShareService:
+    """
+    Orchestrator that selects an analyzer strategy based on Provider
+    and exposes a single analyze(text) entrypoint.
+    """
+
     def __init__(self, provider: Provider | None = None):
-        self.provider = provider or settings.provider
+        self.provider: Provider = provider or settings.provider
+        self.analyzer = self._build_analyzer(self.provider)
+
+        # Uniform readiness check (local is always available; llm depends on config/endpoint)
+        if hasattr(self.analyzer, "is_available") and not self.analyzer.is_available:
+            raise self._unavailable_error(self.provider)
 
         if self.provider == Provider.LOCAL:
             self.analyzer = RuleBasedAnalyzer()
