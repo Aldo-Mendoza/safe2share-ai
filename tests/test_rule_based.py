@@ -93,6 +93,14 @@ def test_rewrite_redacts_detected_spans():
     assert "hunter42" not in rewritten
 
 
+def test_rewrite_redacts_only_value_for_password_assignment():
+    r = analyze("My password is Mac&Cheese4")
+    assert r.risk in ("CONFIDENTIAL", "HIGHLY_CONFIDENTIAL")
+    assert any(d.label == "CREDENTIAL" for d in r.detections)
+    assert r.suggested_rewrites
+    assert "My password is [REDACTED]" in r.suggested_rewrites[0]
+
+
 def test_high_entropy_without_context_does_not_trigger():
     # Looks like base64-ish, but no hint words like token/secret/key nearby.
     text = "Here is an example blob: QWxkb0FtZW5kb3NhZmUyU2hhcmVQcm9qZWN0VGVzdA=="
