@@ -1,0 +1,8 @@
+services:
+  safe2share:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      # Default provider for the server (optional)
+      - S2S_PROVIDER=local

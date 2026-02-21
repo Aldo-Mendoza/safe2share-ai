@@ -1,0 +1,21 @@
+services:
+  safe2share:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - S2S_PROVIDER=auto
+      - S2S_LLM_BASE_URL=http://ollama:11434/v1
+      - S2S_LLM_MODEL=llama3.1:latest
+    depends_on:
+      - ollama
+
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama:/root/.ollama
+
+volumes:
+  ollama:
