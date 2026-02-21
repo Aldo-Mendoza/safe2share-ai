@@ -9,7 +9,8 @@ from fastapi import FastAPI, HTTPException
 from .models import AnalyzeRequest, AnalysisResult
 from .service import Safe2ShareService
 
-app = FastAPI(title="Safe2Share", version="0.1.0")
+
+app = FastAPI(title="Safe2Share")
 
 BASE_DIR = Path(__file__).resolve().parent
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
@@ -47,6 +48,5 @@ def analyze(req: AnalyzeRequest) -> AnalysisResult:
     except Exception:
         logger.exception("Unhandled error in /analyze")
         raise HTTPException(status_code=500, detail="Internal error")
-
 
 

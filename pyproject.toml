@@ -1,7 +1,57 @@
+[build-system]
+requires = ["hatchling>=1.24.0"]
+build-backend = "hatchling.build"
+
+[project]
+name = "safe2share-ai"
+version = "0.6.0"
+description = "Local-first confidentiality scanner for AI workflows (CLI + FastAPI + optional LLM)."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { file = "LICENSE" }
+authors = [{ name = "Aldo Mendoza Lozano" }]
+keywords = ["security", "privacy", "dlp", "llm", "fastapi", "cli"]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: OS Independent",
+]
+
+dependencies = [
+  "fastapi>=0.123.0",
+  "uvicorn>=0.38.0",
+  "pydantic>=2.12.0",
+  "pydantic-settings>=2.12.0",
+  "httpx>=0.28.0",
+  "openai>=2.9.0",
+  "jinja2>=3.1.0",
+  "python-dotenv>=1.2.0",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=9.0.0",
+  "ruff>=0.14.0",
+  "black>=25.0.0",
+]
+
+[project.scripts]
+safe2share = "safe2share.cli:main"
+safe2share-api = "safe2share.scripts.serve:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/safe2share"]
+
+# Include non-Python assets (templates/static) inside the wheel
+[tool.hatch.build]
+include = [
+  "src/safe2share/templates/**",
+  "src/safe2share/static/**",
+]
+
 [tool.ruff]
 line_length = 88
 
 [tool.pytest.ini_options]
-pythonpath = [
-  "src"
-]
+pythonpath = ["src"]
