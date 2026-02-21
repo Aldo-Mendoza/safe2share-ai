@@ -15,7 +15,7 @@ class FakeAnalyzer:
         return self._result
 
 
-def test_auto_does_not_escalate_on_public():
+def test_auto_does_not_escalate_on_public_without_hints():
     local = FakeAnalyzer(
         AnalysisResult(
             risk="PUBLIC",
@@ -38,12 +38,57 @@ def test_auto_does_not_escalate_on_public():
     )
 
     auto = AutoCombinedAnalyzer(local=local, llm=llm, policy=AutoPolicy())
-    r = auto.analyze("hello")
+    r = auto.analyze("hello world")
 
     assert r.risk == "PUBLIC"
     assert r.metadata["provider"] == "auto"
     assert r.metadata["auto_path"] == "local_only"
     assert r.metadata["auto_escalated"] == "false"
+    # If you added this metadata field, keep this assertion:
+    if "auto_hint_triggered" in r.metadata:
+        assert r.metadata["auto_hint_triggered"] == "false"
+
+
+def test_auto_escalates_on_public_when_hint_present_and_llm_available():
+    """
+    Even if local finds nothing, AUTO should escalate when the text contains
+    a high-risk intent phrase (e.g., safe code / pin / otp).
+    """
+    local = FakeAnalyzer(
+        AnalysisResult(
+            risk="PUBLIC",
+            score=0,
+            reasons=["No sensitive patterns found"],
+            detections=[],
+            suggested_rewrites=[],
+            metadata={"analyzer": "fake_local"},
+        )
+    )
+    llm = FakeAnalyzer(
+        AnalysisResult(
+            risk="HIGHLY_CONFIDENTIAL",
+            score=90,
+            reasons=["Contains a safe/pin code value."],
+            detections=[],
+            suggested_rewrites=["[REDACTED]"],
+            metadata={"model": "fake-model"},
+        )
+    )
+
+    # Use a policy with a controlled hint list so the test is stable
+    policy = AutoPolicy(escalate_hints=("code to my safe",))
+
+    auto = AutoCombinedAnalyzer(local=local, llm=llm, policy=policy)
+    r = auto.analyze("the code to my safe is 87362")
+
+    assert r.metadata["provider"] == "auto"
+    assert r.metadata["auto_escalated"] == "true"
+    assert r.metadata["auto_path"] == "escalated_to_llm"
+    assert r.metadata["auto_local_risk"] == "PUBLIC"
+    assert r.metadata["auto_local_score"] == "0"
+    if "auto_hint_triggered" in r.metadata:
+        assert r.metadata["auto_hint_triggered"] == "true"
+    assert r.risk == "HIGHLY_CONFIDENTIAL"
 
 
 def test_auto_escalates_on_confidential_when_llm_available():
@@ -78,7 +123,7 @@ def test_auto_escalates_on_confidential_when_llm_available():
     assert r.metadata["auto_local_risk"] == "CONFIDENTIAL"
 
 
-def test_auto_falls_back_to_local_if_llm_unavailable():
+def test_auto_falls_back_to_local_if_llm_unavailable_when_escalation_needed():
     local = FakeAnalyzer(
         AnalysisResult(
             risk="HIGHLY_CONFIDENTIAL",
