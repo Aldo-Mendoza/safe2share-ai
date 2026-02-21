@@ -5,22 +5,30 @@ from ..models import AnalysisResult, Detection, map_score_to_risk
 
 
 class PatternDetector:
-    def __init__(self, label: str, regex: str, base_score: int):
+    def __init__(self, label: str, regex: str, base_score: int, redact_group: int = 0):
         self.label = label
         self.regex = re.compile(regex, re.IGNORECASE | re.MULTILINE)
         self.base_score = base_score
+        self.redact_group = redact_group
 
     def find(self, text: str) -> List[Detection]:
         results: List[Detection] = []
-        for match in self.regex.finditer(text):
-            span = match.group(0)
+        for m in self.regex.finditer(text):
+            # Choose which part of the match is the sensitive span
+            try:
+                span = m.group(self.redact_group)
+                start, end = m.span(self.redact_group)
+            except IndexError:
+                span = m.group(0)
+                start, end = m.span(0)
+
             results.append(
                 Detection(
                     label=self.label,
                     span=span,
                     score=self.base_score,
-                    start=match.start(),
-                    end=match.end(),
+                    start=start,
+                    end=end,
                 )
             )
         return results
@@ -34,18 +42,26 @@ class RuleBasedAnalyzer(BaseAnalyzer):
     DETECTORS = [
         # Password-like fields
         PatternDetector(
-            "CREDENTIAL", r"(password|pass|pwd)\s*(?:[:=]|is)\s*\S+", 90),
+            "CREDENTIAL",
+            r"(?:password|pass|pwd)\s*(?:[:=]|is)\s*([^\s,.;]+)",
+            90,
+            redact_group=1,
+        ),
 
         # Generic tokens/secrets
         PatternDetector(
-            "SECRET", r"(token|secret|api[_\s]?key)\s*[:=]\s*\S+", 85),
+            "SECRET",
+            r"(?:token|secret|api[_\s]?key)\s*[:=]\s*([^\s,.;]+)",
+            85,
+            redact_group=1,
+        ),
 
         # JWT tokens
         PatternDetector(
             "JWT", r"eyJ[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{10,}", 95),
 
         # OpenAI-like keys
-        PatternDetector("API_KEY", r"sk-[A-Za-z0-9]{20,}", 95),
+        PatternDetector("API_KEY", r"(sk-[A-Za-z0-9]{20,})", 95, redact_group=1),
 
         # Emails
         PatternDetector(
