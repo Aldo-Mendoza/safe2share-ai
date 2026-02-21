@@ -13,6 +13,17 @@ from ..models import AnalysisResult
 class AutoPolicy:
     # Escalate to LLM when local result indicates meaningful risk
     escalate_risks: tuple[str, ...] = ("CONFIDENTIAL", "HIGHLY_CONFIDENTIAL")
+    escalate_hints: tuple[str, ...] = (
+        "code to my safe",
+        "safe code",
+        "passcode",
+        "pin",
+        "otp",
+        "one-time code",
+        "security code",
+        "vault code",
+        "door code",
+    )
 
 
 class AutoCombinedAnalyzer(BaseAnalyzer):
@@ -39,14 +50,17 @@ class AutoCombinedAnalyzer(BaseAnalyzer):
     def analyze(self, text: str) -> AnalysisResult:
         local_res = self.local.analyze(text)
 
-        # Decide escalation
-        should_escalate = local_res.risk in self.policy.escalate_risks
+        text_l = text.lower()
+        hint_trigger = any(h in text_l for h in self.policy.escalate_hints)
+
+        should_escalate = (local_res.risk in self.policy.escalate_risks) or hint_trigger
 
         # Always record local result in metadata
         local_meta = {
             "auto_local_risk": local_res.risk,
             "auto_local_score": str(local_res.score),
             "auto_escalated": str(should_escalate).lower(),
+            "auto_hint_triggered": str(hint_trigger).lower(),
         }
 
         # If not escalating, return local
