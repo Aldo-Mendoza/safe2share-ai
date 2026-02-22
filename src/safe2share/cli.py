@@ -1,25 +1,37 @@
 # CLI entrypoint
 
 
+import argparse
+import json
+import sys
+from pathlib import Path
 
 from .providers import Provider
-import sys
+
 # from .logconfig import logger
 from .service import Safe2ShareService
-import json
-import argparse
-from pathlib import Path
 
 
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
-        prog="safe2share", 
-        description="Preflight confidentiality scanner for prompts and text."
+        prog="safe2share",
+        description="Preflight confidentiality scanner for prompts and text.",
     )
-    p.add_argument("text", nargs="?", help="Text to analyze. If omitted, reads from stdin (or --file).")
+    p.add_argument(
+        "text",
+        nargs="?",
+        help="Text to analyze. If omitted, reads from stdin (or --file).",
+    )
     p.add_argument("--file", "-f", help="Path to a text file to analyze (utf-8).")
-    p.add_argument("--max-chars", type=int, default=200_000, help="Max characters to analyze (default: 200000).")
-    p.add_argument("--provider", choices=[e.value for e in Provider], default=Provider.LOCAL.value)
+    p.add_argument(
+        "--max-chars",
+        type=int,
+        default=200_000,
+        help="Max characters to analyze (default: 200000).",
+    )
+    p.add_argument(
+        "--provider", choices=[e.value for e in Provider], default=Provider.LOCAL.value
+    )
     p.add_argument("--json", action="store_true", help="Output JSON")
     return p
 
@@ -75,8 +87,12 @@ def main() -> int:
         return 1
 
     if args.json:
-        print(json.dumps(result.model_dump() if hasattr(
-            result, "model_dump") else result, indent=2))
+        print(
+            json.dumps(
+                result.model_dump() if hasattr(result, "model_dump") else result,
+                indent=2,
+            )
+        )
     else:
         # Minimal, readable output for MVP (we'll improve formatting later)
         if hasattr(result, "risk") and hasattr(result, "score"):

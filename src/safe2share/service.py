@@ -1,11 +1,10 @@
 import logging
 
+from .analyzers.auto_combined import AutoCombinedAnalyzer
+from .analyzers.llm_openai_compat import OpenAICompatibleAnalyzer
+from .analyzers.rule_based import RuleBasedAnalyzer
 from .config import settings
 from .providers import Provider
-
-from .analyzers.rule_based import RuleBasedAnalyzer
-from .analyzers.llm_openai_compat import OpenAICompatibleAnalyzer
-from .analyzers.auto_combined import AutoCombinedAnalyzer
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +22,10 @@ class Safe2ShareService:
         # Enforce readiness for explicit LLM provider.
         # AUTO is always usable because local runs even if LLM is unavailable.
         if self.provider == Provider.LLM:
-            if hasattr(self.analyzer, "is_available") and not self.analyzer.is_available:
+            if (
+                hasattr(self.analyzer, "is_available")
+                and not self.analyzer.is_available
+            ):
                 raise self._unavailable_error()
 
     def _build_analyzer(self, provider: Provider):
