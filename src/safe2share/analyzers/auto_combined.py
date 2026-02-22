@@ -3,10 +3,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Optional
 
-from .base import BaseAnalyzer
-from .rule_based import RuleBasedAnalyzer
-from .llm_openai_compat import OpenAICompatibleAnalyzer
 from ..models import AnalysisResult
+from .base import BaseAnalyzer
+from .llm_openai_compat import OpenAICompatibleAnalyzer
+from .rule_based import RuleBasedAnalyzer
 
 
 @dataclass
@@ -65,8 +65,12 @@ class AutoCombinedAnalyzer(BaseAnalyzer):
 
         # If not escalating, return local
         if not should_escalate:
-            local_res.metadata = {**(local_res.metadata or {}), **
-                                  local_meta, "provider": "auto", "auto_path": "local_only"}
+            local_res.metadata = {
+                **(local_res.metadata or {}),
+                **local_meta,
+                "provider": "auto",
+                "auto_path": "local_only",
+            }
             return local_res
 
         # Escalate only if LLM is available

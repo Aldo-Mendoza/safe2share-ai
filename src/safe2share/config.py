@@ -1,4 +1,3 @@
-from pydantic import BaseModel
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from .providers import Provider
@@ -8,6 +7,7 @@ class Settings(BaseSettings):
     """
     Central configuration for Safe2Share.
     """
+
     model_config = SettingsConfigDict(env_prefix="S2S_", extra="ignore")
 
     provider: Provider = Provider.LOCAL

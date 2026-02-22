@@ -6,11 +6,10 @@ from typing import Any, Dict, List
 
 from openai import OpenAI
 
-from .base import BaseAnalyzer
 from ..config import settings
 from ..models import AnalysisResult, Detection, map_score_to_risk
-from .prompts import (PROMPT_V1, PROMPT_V2_REDACT_FULL)
-
+from .base import BaseAnalyzer
+from .prompts import PROMPT_V2_REDACT_FULL
 
 SYSTEM_PROMPT = PROMPT_V2_REDACT_FULL
 
@@ -64,8 +63,7 @@ class OpenAICompatibleAnalyzer(BaseAnalyzer):
 
         score = int(data.get("score", 0))
         reasons = self._to_list_of_str(data.get("reasons", []))
-        suggested_rewrites = self._to_list_of_str(
-            data.get("suggested_rewrites", []))
+        suggested_rewrites = self._to_list_of_str(data.get("suggested_rewrites", []))
 
         detections: List[Detection] = []
         for d in data.get("detections", []) or []:
@@ -105,7 +103,8 @@ class OpenAICompatibleAnalyzer(BaseAnalyzer):
 
         # If model returned a fenced block, prefer it
         fenced = re.search(
-            r"```(?:json)?\s*(\{.*?\})\s*```", text, flags=re.DOTALL | re.IGNORECASE)
+            r"```(?:json)?\s*(\{.*?\})\s*```", text, flags=re.DOTALL | re.IGNORECASE
+        )
         if fenced:
             candidate = fenced.group(1)
             try:

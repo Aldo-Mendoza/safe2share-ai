@@ -1,14 +1,13 @@
 import logging
-from fastapi import Request
-from fastapi.templating import Jinja2Templates
-from fastapi.staticfiles import StaticFiles
-from fastapi.responses import HTMLResponse
 from pathlib import Path
-from fastapi import FastAPI, HTTPException
 
-from .models import AnalyzeRequest, AnalysisResult
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
+
+from .models import AnalysisResult, AnalyzeRequest
 from .service import Safe2ShareService
-
 
 app = FastAPI(title="Safe2Share")
 
@@ -25,7 +24,6 @@ def home(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
 
 
-
 @app.get("/health")
 def health() -> dict:
     return {"status": "ok"}
@@ -37,7 +35,7 @@ def analyze(req: AnalyzeRequest) -> AnalysisResult:
         if len(req.text) > MAX_TEXT_CHARS:
             raise HTTPException(
                 status_code=413,
-                detail=f"Text too large ({len(req.text)} chars). Limit is {MAX_TEXT_CHARS}."
+                detail=f"Text too large ({len(req.text)} chars). Limit is {MAX_TEXT_CHARS}.",
             )
         svc = Safe2ShareService(provider=req.provider)
         return svc.analyze(req.text)
@@ -48,5 +46,3 @@ def analyze(req: AnalyzeRequest) -> AnalysisResult:
     except Exception:
         logger.exception("Unhandled error in /analyze")
         raise HTTPException(status_code=500, detail="Internal error")
-
-

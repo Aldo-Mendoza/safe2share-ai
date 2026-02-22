@@ -30,8 +30,7 @@ def test_detects_generic_token_secret():
     assert r.risk in ("CONFIDENTIAL", "HIGHLY_CONFIDENTIAL")
     assert r.score >= 80
     assert "SECRET" in labels(r)
-    assert "[REDACTED]" in (r.suggested_rewrites[0]
-                            if r.suggested_rewrites else "")
+    assert "[REDACTED]" in (r.suggested_rewrites[0] if r.suggested_rewrites else "")
 
 
 def test_detects_openai_style_api_key():
@@ -50,9 +49,11 @@ def test_detects_private_key_block_header():
 
 def test_detects_jwt_token_shape():
     # Minimal valid JWT-like structure for regex (header.payload.signature)
-    jwt = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9." \
-          "eyJ1c2VySWQiOiIxMjMiLCJyb2xlIjoiYWRtaW4ifQ." \
-          "sflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c"
+    jwt = (
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9."
+        "eyJ1c2VySWQiOiIxMjMiLCJyb2xlIjoiYWRtaW4ifQ."
+        "sflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c"
+    )
     r = analyze(f"My JWT is {jwt}")
     assert r.risk == "HIGHLY_CONFIDENTIAL"
     assert r.score >= 90

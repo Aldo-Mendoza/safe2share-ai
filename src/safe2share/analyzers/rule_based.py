@@ -1,7 +1,8 @@
 import re
-from typing import List, Dict
-from .base import BaseAnalyzer
+from typing import List
+
 from ..models import AnalysisResult, Detection, map_score_to_risk
+from .base import BaseAnalyzer
 
 
 class PatternDetector:
@@ -47,7 +48,6 @@ class RuleBasedAnalyzer(BaseAnalyzer):
             90,
             redact_group=1,
         ),
-
         # Generic tokens/secrets
         PatternDetector(
             "SECRET",
@@ -55,25 +55,20 @@ class RuleBasedAnalyzer(BaseAnalyzer):
             85,
             redact_group=1,
         ),
-
         # JWT tokens
         PatternDetector(
-            "JWT", r"eyJ[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{10,}", 95),
-
+            "JWT", r"eyJ[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{10,}", 95
+        ),
         # OpenAI-like keys
         PatternDetector("API_KEY", r"(sk-[A-Za-z0-9]{20,})", 95, redact_group=1),
-
         # Emails
-        PatternDetector(
-            "EMAIL", r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}", 40),
-
+        PatternDetector("EMAIL", r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}", 40),
         # Phone numbers
         PatternDetector("PHONE", r"\+?\d[\d\s\-\(\)]{8,}\d", 35),
-
         # Private key blocks
         PatternDetector(
-            "PRIVATE_KEY", r"-----BEGIN (?:RSA|DSA|EC|OPENSSH)?\s*PRIVATE KEY-----", 100),
-
+            "PRIVATE_KEY", r"-----BEGIN (?:RSA|DSA|EC|OPENSSH)?\s*PRIVATE KEY-----", 100
+        ),
         # High-entropy long strings (possible secrets)
         PatternDetector("HIGH_ENTROPY", r"[A-Za-z0-9+/]{32,}={0,2}", 60),
     ]
@@ -89,9 +84,15 @@ class RuleBasedAnalyzer(BaseAnalyzer):
     }
 
     HIGH_ENTROPY_HINT_WORDS = (
-        "token", "secret", "api", "key", "password", "bearer", "credential", "jwt"
+        "token",
+        "secret",
+        "api",
+        "key",
+        "password",
+        "bearer",
+        "credential",
+        "jwt",
     )
-
 
     @property
     def is_available(self) -> bool:
@@ -167,7 +168,7 @@ class RuleBasedAnalyzer(BaseAnalyzer):
                 if d.start < cursor:
                     # Overlapping span; skip (merge logic can be added later)
                     continue
-                redacted_parts.append(text[cursor:d.start])
+                redacted_parts.append(text[cursor : d.start])
                 redacted_parts.append("[REDACTED]")
                 cursor = d.end
             redacted_parts.append(text[cursor:])

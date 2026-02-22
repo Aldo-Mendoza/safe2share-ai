@@ -1,4 +1,3 @@
-import os
 import pytest
 
 from safe2share.providers import Provider
