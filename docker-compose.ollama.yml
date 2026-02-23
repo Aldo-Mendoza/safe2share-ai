@@ -6,7 +6,7 @@ services:
     environment:
       - S2S_PROVIDER=auto
       - S2S_LLM_BASE_URL=http://ollama:11434/v1
-      - S2S_LLM_MODEL=llama3.1:latest
+      - S2S_LLM_MODEL=${S2S_LLM_MODEL:-llama3.1:latest}
     depends_on:
       - ollama
 
